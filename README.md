@@ -9,9 +9,8 @@ Now it's being upgraded into an **online competitive programming platform** — 
 ## 🚀 What is Code_War?
 
 Two players join a room via **WebSocket**, and are assigned the **same coding problem**.  
-Whoever solves it first... wins the game. Simple.
+Whoever solves it first... wins the World sorry game.
 
-> Think of it as **coding meets battle royale**, but nerdier.
 
 ## 🛠 Tools & Technologies
 
