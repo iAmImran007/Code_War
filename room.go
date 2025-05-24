@@ -32,11 +32,18 @@ type Message struct {
 	Problem interface{} `json:"problem,omitempty"`
 	Code    string      `json:"code,omitempty"`
 	Result  interface{} `json:"result,omitempty"`
+	Text    string      `json:"text,omitempty"`
+	From    string      `json:"from,omitempty"`
 }
 
 type SubmissionMessage struct {
 	Type string `json:"type"`
 	Code string `json:"code"`
+}
+
+type ChatMsg struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
 }
 
 func NewRoom(db *Databse) *Room {
@@ -154,21 +161,49 @@ func (rm *Room) ListenForSolutions(player *Player) {
 	for {
 		_, message, err := player.conn.ReadMessage()
 		if err != nil {
-			fmt.Println("Read error:", err)
-			break
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				fmt.Printf("unexpected close error from player %v\n", err)
+				break
+			}
+			fmt.Printf("read error from player %v\n", err)
+			break // Or: continue, if you want to ignore this error
 		}
 
-		var submission SubmissionMessage
-		if err := json.Unmarshal(message, &submission); err != nil {
-			fmt.Println("Error unmarshalling submission:", err)
+		var baseMsg map[string]interface{}
+		if err := json.Unmarshal(message, &baseMsg); err != nil {
+			fmt.Printf("jSON unmarshal error from player %v\nMessage: %s\n", err, string(message))
 			continue
 		}
 
-		if submission.Type == "submit" {
+		msgType, ok := baseMsg["type"].(string)
+		if !ok {
+			fmt.Printf("Invalid or missing 'type' field from playerMessage: %s\n", string(message))
+			continue
+		}
+
+		switch msgType {
+		case "submit":
+			var submission SubmissionMessage
+			if err := json.Unmarshal(message, &submission); err != nil {
+				fmt.Printf("Submission unmarshal error from player %v\n", err)
+				continue
+			}
 			rm.handleSubmission(player, submission.Code)
+
+		case "chat":
+			var chatMsg ChatMsg
+			if err := json.Unmarshal(message, &chatMsg); err != nil {
+				fmt.Printf("Chat unmarshal error from player %v\n", err)
+				continue
+			}
+			rm.handleChatMsg(player, chatMsg.Text)
+
+		default:
+			fmt.Printf("Unknown message type '%s'", msgType)
 		}
 	}
 }
+
 
 func (rm *Room) handleSubmission(player *Player, code string) {
 	rm.mu.Lock()
@@ -250,7 +285,7 @@ func (rm *Room) handleGameWin(winner *Player) {
 
 	fmt.Println("Game finished - winner determined")
 
-	// Clean up after a short delay to allow messages to be sent
+	// Clean up after a short delay to allow messages to be sent coz 
 	go func() {
 		rm.CleanupPlayers(winner)
 		rm.CleanupPlayers(partner)
@@ -330,4 +365,36 @@ func (rm *Room) CleanupPlayers(player *Player) {
 	}
 
 	fmt.Println("Cleanup complete for player")
+}
+
+func (rm *Room) handleChatMsg(player *Player, text string) {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+	
+		//if both are active
+		if player.partner == nil || player.solved {
+			return 
+		}
+
+		//chat 
+		chatMsg := Message{
+			Type: "chat",
+		    Text: text,
+		    From: "opponent",
+		}
+
+		chatJson, err := json.Marshal(chatMsg)
+		if err != nil {
+			fmt.Println("Error while mershaligng chat msg")
+			return
+		}
+
+		//send the msg
+		select{
+		case player.partner.send <- chatJson:
+			fmt.Printf("Chat msg send to: %s\n", text)
+		default:
+			fmt.Println("Feild to send a chat msg chanel problem")
+		}
+	
 }
