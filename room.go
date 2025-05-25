@@ -229,7 +229,7 @@ func (rm *Room) handleSubmission(player *Player, code string) {
 		})
 	}
 
-	result, err := JudgeCode(problem.ID, code, testCases)
+	result, err := JudgeCode(problem.ID, code, testCases, rm.db)
 	if err != nil {
 		fmt.Printf("Judge error: %v\n", err)
 		errorMsg := Message{

@@ -14,6 +14,7 @@ import (
 
 type Databse struct {
 	Db *gorm.DB
+	Cache *Redis
 }
 
 func LoadEnv() {
@@ -49,6 +50,13 @@ func ConectToDb(db *Databse) {
 	} else {
 		fmt.Println("Database auto migrate successfully")
 	}
+
+	//inisilized redis
+	db.Cache = NewServerChace(db)
+	if db.Cache == nil {
+		log.Printf("Warning: redis chace is not avalabel, falling back to db")
+	}
+	
 }
 
 func GetDb(d *Databse) *gorm.DB {
@@ -56,6 +64,13 @@ func GetDb(d *Databse) *gorm.DB {
 }
 
 func GetRandomProblem(db *Databse) (*ProblemPropaty, error) {
+
+	//Use chace if avalable
+	if db.Cache != nil {
+		return db.Cache.GetRandomproblem()
+	}
+
+	//fall back to the db
 	var problems []ProblemPropaty
 	if err := db.Db.Preload("TestCases").Find(&problems).Error; err != nil {
 		return nil, err
@@ -163,6 +178,12 @@ using namespace std;`,
 			return fmt.Errorf("failed to insert problem '%s': %v", problem.Title, err)
 		}
 		fmt.Printf("Problem '%s' inserted successfully\n", problem.Title)
+	}
+
+	//clear chace after inserting new problem
+	if db.Cache != nil {
+		db.Cache.ClearChace()
+		fmt.Println("Chaced is clear after inserting new problem")
 	}
 
 	return nil
