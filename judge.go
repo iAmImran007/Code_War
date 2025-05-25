@@ -19,7 +19,7 @@ type TestCase struct {
 	ExpectedOutput string `json:"expected_output"`
 }
 
-func JudgeCode(problemId uint, code string, testCases []TestCase) (JudgeResult, error) {
+func JudgeCode(problemId uint, code string, testCases []TestCase, db *Databse) (JudgeResult, error) {
 	// Create temp directory for this submission
 	tempDir, err := os.MkdirTemp("", "submission_*")
 	if err != nil {
@@ -33,18 +33,21 @@ func JudgeCode(problemId uint, code string, testCases []TestCase) (JudgeResult, 
 	inputFile := filepath.Join(tempDir, "input.txt")
 	outputFile := filepath.Join(tempDir, "output.txt")
 
-	// Fetch header file and main func from db
-	db := Databse{}
-	ConectToDb(&db)
+	// Fetch header file and main func using cache
+	var problem *ProblemPropaty
+	
+	if db.Cache != nil {
+		// Use cache
+		problem, err = db.Cache.GetProblemById(problemId)
+	} else {
+		// Fallback to direct DB query
+		var p ProblemPropaty
+		err = db.Db.Select("hader_file", "main_func").Where("id = ?", problemId).First(&p).Error
+		problem = &p
+	}
 
-	var problem ProblemPropaty
-	fetchErr := GetDb(&db).
-		Select("hader_file", "main_func").
-		Where("id = ?", problemId).
-		First(&problem).Error
-
-	if fetchErr != nil {
-		return JudgeResult{}, fmt.Errorf("failed to fetch main and header file: %v", fetchErr)
+	if err != nil {
+		return JudgeResult{}, fmt.Errorf("failed to fetch main and header file: %v", err)
 	}
 
 	// Join the header + user code + main file in the code
