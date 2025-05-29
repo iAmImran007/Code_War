@@ -1,6 +1,6 @@
 # Code_War 🧠⚔️
 
-[→ View original repo: `leadcode-under-the-hood`](https://github.com/iAmImran007/leadcode-under-the-hood)
+[→ View my original repo: `leadcode-under-the-hood`](https://github.com/iAmImran007/leadcode-under-the-hood)
 
 This project started as [`leadcode-under-the-hood`](https://github.com/iAmImran007/leadcode-under-the-hood) — a minimal version of how **LeetCode works internally**, built just to explore the core logic.
 
