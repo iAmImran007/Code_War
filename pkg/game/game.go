@@ -7,9 +7,9 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-	cppruner "github.com/iAmImran007/game-service/pkg/cppRuner"
-	"github.com/iAmImran007/game-service/pkg/database"
-	"github.com/iAmImran007/game-service/pkg/modles"
+	cppruner "github.com/iAmImran007/Code_War/pkg/cppRuner"
+	"github.com/iAmImran007/Code_War/pkg/database"
+	"github.com/iAmImran007/Code_War/pkg/modles"
 )
 
 type Room struct {

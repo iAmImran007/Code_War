@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/iAmImran007/game-service/pkg/database"
-	"github.com/iAmImran007/game-service/pkg/modles"
+	"github.com/iAmImran007/Code_War/pkg/database"
+	"github.com/iAmImran007/Code_War/pkg/modles"
 )
 
 type JudgeResult struct {

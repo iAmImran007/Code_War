@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/iAmImran007/game-service/pkg/modles"
+	"github.com/iAmImran007/Code_War/pkg/modles"
 )
 
 type Redis struct {
