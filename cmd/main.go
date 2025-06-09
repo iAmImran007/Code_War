@@ -5,9 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gorilla/mux"
-	"github.com/iAmImran007/game-service/pkg/database"
-	"github.com/iAmImran007/game-service/pkg/game"
+	"github.com/iAmImran007/Code_War/pkg/database"
+	"github.com/iAmImran007/Code_War/pkg/routes"
 )
 
 func main() {
@@ -21,12 +20,9 @@ func main() {
 		log.Printf("Error inserting dummy problem: %v", err)
 	}
 
-	r := mux.NewRouter()
-
-	rm := game.NewRoom(&db)
-
-	r.HandleFunc("/ws", rm.HandleWs)
+	// Initialize router with all routes
+	router := routes.NewRouter(&db)
 
 	fmt.Println("Server running on localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	log.Fatal(http.ListenAndServe(":8080", router.Router))
 }

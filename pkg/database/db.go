@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/iAmImran007/game-service/pkg/modles"
+	"github.com/iAmImran007/Code_War/pkg/modles"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -45,7 +45,7 @@ func ConectToDb(db *Databse) {
 
 	db.Db = conn
 
-	err = db.Db.AutoMigrate(&modles.ProblemPropaty{}, &modles.TestCaesPropaty{})
+	err = db.Db.AutoMigrate(&modles.ProblemPropaty{}, &modles.TestCaesPropaty{}, modles.User{}, modles.RefreshToken{})
 	if err != nil {
 		log.Printf("Failed to auto migrate the database: %v", err)
 	} else {
