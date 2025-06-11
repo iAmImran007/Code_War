@@ -6,6 +6,7 @@ import (
 	"github.com/iAmImran007/Code_War/pkg/database"
 	"github.com/iAmImran007/Code_War/pkg/game"
 	"github.com/iAmImran007/Code_War/pkg/middleware"
+	"github.com/iAmImran007/Code_War/pkg/payment"
 )
 
 type Routes struct {
@@ -13,6 +14,8 @@ type Routes struct {
 	Db             *database.Databse
 	AuthMiddleware *middleware.AuthMiddleware
 	GameRoom       *game.Room
+	StripieService *payment.StripeService
+	GameLimit      *game.GameLimitService
 }
 
 func NewRouter(db *database.Databse) *Routes {
@@ -21,6 +24,8 @@ func NewRouter(db *database.Databse) *Routes {
 		Db:             db,
 		AuthMiddleware: middleware.NewAuthMiddleware(db),
 		GameRoom:       game.NewRoom(db),
+		StripieService: payment.NewStripeService(db),
+		GameLimit: game.NewGameLimitService(db),
 	}
 
 	r.setupRoutes()
@@ -34,9 +39,20 @@ func (r *Routes) setupRoutes() {
 	r.Router.HandleFunc("/signup", r.handleSignUp).Methods("POST")
 	r.Router.HandleFunc("/login", r.handleLogIn).Methods("POST")
 	r.Router.HandleFunc("/refresh-token", r.handleRefreshToken).Methods("POST")
+	r.Router.HandleFunc("/webhook", r.StripieService.HandleWebhook).Methods("POST")
 
 	// Protected routes
 	r.Router.HandleFunc("/logout", r.AuthMiddleware.RequireAuth(r.handleLogout)).Methods("POST")
 	r.Router.HandleFunc("/profile/{id}", r.AuthMiddleware.RequireAuth(r.handleProfile)).Methods("GET")
-	r.Router.HandleFunc("/ws", r.AuthMiddleware.RequireAuth(r.GameRoom.HandleWs))
+	//r.Router.HandleFunc("/ws", r.AuthMiddleware.RequireAuth(r.GameRoom.HandleWs))
+	r.Router.HandleFunc("/ws", r.AuthMiddleware.RequireAuth(r.handleGameWithLimit))
+
+	//stripe routes
+	// Stripe routes
+	r.Router.HandleFunc("/create-checkout-session", r.AuthMiddleware.RequireAuth(r.StripieService.CreateCheckoutSession)).Methods("POST")
+	//r.Router.HandleFunc("/webhook", r.StripieService.HandleWebhook).Methods("POST")
+	r.Router.HandleFunc("/subscription-status", r.AuthMiddleware.RequireAuth(r.handleSubscriptionStatus)).Methods("GET")
+
 }
+
+

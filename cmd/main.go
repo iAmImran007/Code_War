@@ -7,6 +7,7 @@ import (
 
 	"github.com/iAmImran007/Code_War/pkg/database"
 	"github.com/iAmImran007/Code_War/pkg/routes"
+	
 )
 
 func main() {
@@ -23,6 +24,8 @@ func main() {
 	// Initialize router with all routes
 	router := routes.NewRouter(&db)
 
+
+	//bind the cors
 	fmt.Println("Server running on localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", router.Router))
 }
