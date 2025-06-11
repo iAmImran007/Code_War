@@ -45,7 +45,7 @@ func ConectToDb(db *Databse) {
 
 	db.Db = conn
 
-	err = db.Db.AutoMigrate(&modles.ProblemPropaty{}, &modles.TestCaesPropaty{}, modles.User{}, modles.RefreshToken{})
+	err = db.Db.AutoMigrate(&modles.ProblemPropaty{}, &modles.TestCaesPropaty{}, &modles.User{}, &modles.RefreshToken{}, &modles.Subscription{}, &modles.GameUsage{})
 	if err != nil {
 		log.Printf("Failed to auto migrate the database: %v", err)
 	} else {
