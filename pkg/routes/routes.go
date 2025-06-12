@@ -40,17 +40,31 @@ func (r *Routes) setupRoutes() {
 	r.Router.HandleFunc("/login", r.handleLogIn).Methods("POST")
 	r.Router.HandleFunc("/refresh-token", r.handleRefreshToken).Methods("POST")
 	r.Router.HandleFunc("/webhook", r.StripieService.HandleWebhook).Methods("POST")
+	r.Router.HandleFunc("/problems", r.GetAllProblems).Methods("GET")
+	
+	
+	//testig without auctantication 
+	//r.Router.HandleFunc("/submit/{id}", r.HandleSubmition).Methods("POST")
+	//r.Router.HandleFunc("/ws", r.GameRoom.HandleWs)
+
 
 	// Protected routes
 	r.Router.HandleFunc("/logout", r.AuthMiddleware.RequireAuth(r.handleLogout)).Methods("POST")
 	r.Router.HandleFunc("/profile/{id}", r.AuthMiddleware.RequireAuth(r.handleProfile)).Methods("GET")
+
+
+
 	//r.Router.HandleFunc("/ws", r.AuthMiddleware.RequireAuth(r.GameRoom.HandleWs))
 	r.Router.HandleFunc("/ws", r.AuthMiddleware.RequireAuth(r.handleGameWithLimit))
+	r.Router.HandleFunc("/problem/{id}", r.AuthMiddleware.RequireAuth(r.GetProblemById)).Methods("GET")
+	r.Router.HandleFunc("/submit/{id}", r.AuthMiddleware.RequireAuth(r.HandleSubmition)).Methods("POST")
+
+
 
 	//stripe routes
 	// Stripe routes
 	r.Router.HandleFunc("/create-checkout-session", r.AuthMiddleware.RequireAuth(r.StripieService.CreateCheckoutSession)).Methods("POST")
-	//r.Router.HandleFunc("/webhook", r.StripieService.HandleWebhook).Methods("POST")
+	r.Router.HandleFunc("/webhook", r.StripieService.HandleWebhook).Methods("POST")
 	r.Router.HandleFunc("/subscription-status", r.AuthMiddleware.RequireAuth(r.handleSubscriptionStatus)).Methods("GET")
 
 }
