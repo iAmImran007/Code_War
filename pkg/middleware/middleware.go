@@ -100,7 +100,7 @@ func (am *AuthMiddleware) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	})
 }
 
-// Helper function to get user from context (for use in handlers)
+//Helper function to get user from context (for use in handlers)
 func GetUserFromContext(r *http.Request) (*UserContext, bool) {
 	user, ok := r.Context().Value(UserContextKey).(UserContext)
 	return &user, ok

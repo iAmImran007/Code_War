@@ -16,9 +16,11 @@ type SubmissionRequest struct {
 }
 
 type ProblemResponse struct {
-	ID          uint   `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
+	ID          uint             `json:"id"`
+	Title       string           `json:"title"`
+	Description string           `json:"description"`
+	FuncBody    string           `json:"func_body"`
+	Examples    []modles.Example `json:"examples"` // Include examples in the response
 }
 
 type AllProblemsResponse struct {
@@ -52,7 +54,7 @@ func (r *Routes) GetAllProblems(w http.ResponseWriter, req *http.Request) {
 	if r.Db.Cache != nil {
 		problems, err = r.Db.Cache.GetAllProblems()
 	} else {
-		// Fallback to direct DB query
+		// Fallback to direct DB query - include difficulty field
 		err = r.Db.Db.Select("id", "title", "difficulty").Find(&problems).Error
 	}
 
@@ -65,13 +67,20 @@ func (r *Routes) GetAllProblems(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Debug log
+	// fmt.Printf("Problems from DB/Cache: %+v\n", problems)
+
 	var problemsResponse []AllProblemsResponse
 	for _, problem := range problems {
 		problemsResponse = append(problemsResponse, AllProblemsResponse{
-			ID:    problem.ID,
-			Title: problem.Title,
+			ID:         problem.ID,
+			Title:      problem.Title,
+			Difficulty: problem.Difficulty,
 		})
 	}
+
+	// Debug log
+	// fmt.Printf("Problems Response: %+v\n", problemsResponse)
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(Response{
@@ -148,6 +157,8 @@ func (r *Routes) GetProblemById(w http.ResponseWriter, req *http.Request) {
 		ID:          problem.ID,
 		Title:       problem.Title,
 		Description: problem.Description,
+		FuncBody:    problem.FuncBody, // Include only the function body
+		Examples:    problem.Examples, // Include examples in the response
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -293,7 +304,7 @@ func (r *Routes) HandleSubmition(w http.ResponseWriter, req *http.Request) {
 	// Determine status based on results
 	status := "partial"
 	message := "Some test cases failed"
-	
+
 	if result.Passed == result.Total {
 		status = "accepted"
 		message = "All test cases passed! Solution accepted."

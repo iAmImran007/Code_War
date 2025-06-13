@@ -45,7 +45,7 @@ func ConectToDb(db *Databse) {
 
 	db.Db = conn
 
-	err = db.Db.AutoMigrate(&modles.ProblemPropaty{}, &modles.TestCaesPropaty{}, &modles.User{}, &modles.RefreshToken{}, &modles.Subscription{}, &modles.GameUsage{})
+	err = db.Db.AutoMigrate(&modles.ProblemPropaty{}, &modles.TestCaesPropaty{}, &modles.User{}, &modles.RefreshToken{}, &modles.Subscription{}, &modles.GameUsage{}, &modles.Example{})
 	if err != nil {
 		log.Printf("Failed to auto migrate the database: %v", err)
 	} else {
@@ -73,7 +73,7 @@ func GetRandomProblem(db *Databse) (*modles.ProblemPropaty, error) {
 
 	//fall back to the db
 	var problems []modles.ProblemPropaty
-	if err := db.Db.Preload("TestCases").Find(&problems).Error; err != nil {
+	if err := db.Db.Preload("TestCases").Preload("Examples").Find(&problems).Error; err != nil {
 		return nil, err
 	}
 	if len(problems) == 0 {
@@ -99,6 +99,17 @@ func InsertDummyProblem(db *Databse) error {
 		{
 			Title:       "Two Sum",
 			Description: "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
+			Difficulty:  "easy",
+			Examples: []modles.Example{
+				{
+					Input:          "nums = [2,7,11,15], target = 9",
+					ExpectedOutput: "[0,1]",
+				},
+				{
+					Input:          "nums = [3,2,4], target = 6",
+					ExpectedOutput: "[1,2]",
+				},
+			},
 			HaderFile: `#include <bits/stdc++.h> 
 using namespace std;`,
 			FuncBody: `vector<int> twoSum(vector<int>& nums, int target) {
@@ -136,6 +147,17 @@ using namespace std;`,
 		{
 			Title:       "Reverse Integer",
 			Description: "Given a signed 32-bit integer x, return x with its digits reversed. If reversing x causes the value to go outside the signed 32-bit integer range, then return 0.",
+			Difficulty:  "medium",
+			Examples: []modles.Example{
+				{
+					Input:          "x = 123",
+					ExpectedOutput: "321",
+				},
+				{
+					Input:          "x = -123",
+					ExpectedOutput: "-321",
+				},
+			},
 			HaderFile: `#include <bits/stdc++.h>
 using namespace std;`,
 			FuncBody: `int reverse(int x) {
@@ -173,16 +195,17 @@ using namespace std;`,
 
 	// Insert all problems
 	for _, problem := range problems {
+		fmt.Printf("Inserting problem: %s with difficulty: %s\n", problem.Title, problem.Difficulty)
 		if err := db.Db.Create(&problem).Error; err != nil {
 			return fmt.Errorf("failed to insert problem '%s': %v", problem.Title, err)
 		}
-		fmt.Printf("Problem '%s' inserted successfully\n", problem.Title)
+		fmt.Printf("Problem '%s' inserted successfully with difficulty: %s\n", problem.Title, problem.Difficulty)
 	}
 
 	//clear chace after inserting new problem
 	if db.Cache != nil {
 		db.Cache.ClearChace()
-		fmt.Println("Chaced is clear after inserting new problem")
+		fmt.Println("Cache cleared after inserting new problems")
 	}
 
 	return nil
