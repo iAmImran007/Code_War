@@ -2,6 +2,7 @@ package routes
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -127,6 +128,7 @@ func (r *Routes) handleSignUp(w http.ResponseWriter, req *http.Request) {
 
 	// Save user to database
 	if err := r.Db.Db.Create(&user).Error; err != nil {
+		fmt.Printf("Error creating user: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(Response{
 			Success: false,
@@ -134,6 +136,8 @@ func (r *Routes) handleSignUp(w http.ResponseWriter, req *http.Request) {
 		})
 		return
 	}
+
+	fmt.Printf("User created with ID: %d, Email: %s\n", user.ID, user.Email)
 
 	// Generate JWT tokens
 	tokenPair, err := auth.GanaretTokenPair(user.ID, user.Email, user.Role)
@@ -192,7 +196,7 @@ func (r *Routes) handleSignUp(w http.ResponseWriter, req *http.Request) {
 		MaxAge:   7 * 24 * 60 * 60, // 7 days
 		Path:     "/",
 	})
-
+	fmt.Println("User created successfully")
 	// Success response (don't include sensitive data)
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(Response{
@@ -271,6 +275,7 @@ func (r *Routes) handleLogIn(w http.ResponseWriter, req *http.Request) {
 	// Find user
 	var user modles.User
 	if err := r.Db.Db.Where("email = ?", loginReq.Email).First(&user).Error; err != nil {
+		fmt.Printf("Login attempt failed for email %s: %v\n", loginReq.Email, err)
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(Response{
 			Success: false,
@@ -278,6 +283,8 @@ func (r *Routes) handleLogIn(w http.ResponseWriter, req *http.Request) {
 		})
 		return
 	}
+
+	fmt.Printf("User found with ID: %d, Email: %s\n", user.ID, user.Email)
 
 	// Verify password
 	if err := utils.ComparePassword(user.Password, loginReq.Password); err != nil {
@@ -647,6 +654,58 @@ func (r *Routes) handleHome(w http.ResponseWriter, req *http.Request) {
 			"name":        "Code War API",
 			"version":     "1.0.0",
 			"description": "A competitive coding platform API",
+		},
+	})
+}
+
+func (r *Routes) handleCheckAuth(w http.ResponseWriter, req *http.Request) {
+	// Set security headers
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("X-XSS-Protection", "1; mode=block")
+
+	// Only allow GET method
+	if req.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(Response{
+			Success: false,
+			Message: "Method not allowed",
+		})
+		return
+	}
+
+	// Get access token from cookie
+	accessCookie, err := req.Cookie("access_token")
+	if err != nil || accessCookie.Value == "" {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(Response{
+			Success: false,
+			Message: "Not authenticated",
+		})
+		return
+	}
+
+	// Validate the token
+	claims, err := auth.ValidateToken(accessCookie.Value)
+	if err != nil {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(Response{
+			Success: false,
+			Message: "Invalid token",
+		})
+		return
+	}
+
+	// Success response
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(Response{
+		Success: true,
+		Message: "Authenticated",
+		Data: map[string]interface{}{
+			"user_id": claims.UserID,
+			"email":   claims.Email,
+			"role":    claims.Role,
 		},
 	})
 }

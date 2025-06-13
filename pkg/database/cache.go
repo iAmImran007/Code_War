@@ -57,7 +57,7 @@ func (r *Redis) GetAllProblems() ([]modles.ProblemPropaty, error) {
 	// Cache miss - fetch from database
 	fmt.Println("Cache MISS: Fetching problems from database")
 	var problems []modles.ProblemPropaty
-	if err := r.db.Db.Preload("TestCases").Find(&problems).Error; err != nil {
+	if err := r.db.Db.Select("id", "title", "difficulty").Find(&problems).Error; err != nil {
 		return nil, err
 	}
 

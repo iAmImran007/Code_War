@@ -27,12 +27,7 @@ func main() {
 	//Configure CORS
 	corsOpts := handlers.CORS(
 		handlers.AllowedOrigins([]string{
-			"http://localhost:3000",  // React default
-			"http://localhost:3001",  // Alternative React port
-			"http://localhost:5173",  // Vite default
-			"http://localhost:4200",  // Angular default
-			"http://127.0.0.1:3000",  // Alternative localhost
-			"http://127.0.0.1:5173",  // Alternative localhost for Vite
+			"http://127.0.0.1:5500", //vs code liveserver
 		}),
 		handlers.AllowedMethods([]string{
 			"GET", "POST", "PUT", "DELETE", "OPTIONS",
@@ -44,7 +39,7 @@ func main() {
 			"Accept",
 			"Origin",
 		}),
-		handlers.AllowCredentials(), // Important for auth cookies/tokens
+		handlers.AllowCredentials(), // for auth cookies/tokens
 	)
 
 	//bind the cors
