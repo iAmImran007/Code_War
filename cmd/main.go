@@ -32,7 +32,7 @@ func main() {
 	corsOpts := handlers.CORS(
 		handlers.AllowedOrigins([]string{
 			"http://127.0.0.1:5500", //vs code liveserver
-			//add whatever u want to add
+			"http://localhost:8080",
 		}),
 		handlers.AllowedMethods([]string{
 			"GET", "POST", "PUT", "DELETE", "OPTIONS",
