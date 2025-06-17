@@ -624,6 +624,8 @@ func (r *Routes) handleProfile(w http.ResponseWriter, req *http.Request) {
 			"user_id": user.ID,
 			"email":   user.Email,
 			"role":    user.Role,
+			"rating": user.Rating,
+			"solved_problems": user.SolvedProblems,
 		},
 	})
 }
@@ -658,6 +660,7 @@ func (r *Routes) handleHome(w http.ResponseWriter, req *http.Request) {
 	})
 }
 
+/*
 func (r *Routes) handleCheckAuth(w http.ResponseWriter, req *http.Request) {
 	// Set security headers
 	w.Header().Set("Content-Type", "application/json")
@@ -709,3 +712,4 @@ func (r *Routes) handleCheckAuth(w http.ResponseWriter, req *http.Request) {
 		},
 	})
 }
+*/

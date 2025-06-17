@@ -2,7 +2,6 @@ package database
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"time"
@@ -18,14 +17,15 @@ type Databse struct {
 	Cache *Redis
 }
 
-func LoadEnv() {
+func LoadEnv() error {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error while loading the env files")
+		return fmt.Errorf("error while loading the env files: %v", err)
 	}
+	return nil
 }
 
-func ConectToDb(db *Databse) {
+func ConectToDb(db *Databse) error {
 	LoadEnv()
 
 	dsn := fmt.Sprintf(
@@ -40,24 +40,35 @@ func ConectToDb(db *Databse) {
 
 	conn, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Failed to connect to the database: %v", err)
+		return fmt.Errorf("failed to connect to the database: %v", err)
+	}
+
+	// Test the connection
+	sqlDB, err := conn.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get database instance: %v", err)
+	}
+
+	if err := sqlDB.Ping(); err != nil {
+		return fmt.Errorf("failed to ping database: %v", err)
 	}
 
 	db.Db = conn
 
+	// Auto migrate the schema
 	err = db.Db.AutoMigrate(&modles.ProblemPropaty{}, &modles.TestCaesPropaty{}, &modles.User{}, &modles.RefreshToken{}, &modles.Subscription{}, &modles.GameUsage{}, &modles.Example{})
 	if err != nil {
-		log.Printf("Failed to auto migrate the database: %v", err)
-	} else {
-		fmt.Println("Database auto migrate successfully")
+		return fmt.Errorf("failed to auto migrate the database: %v", err)
 	}
+	fmt.Println("Database auto migrate successfully")
 
-	//inisilized redis
+	// Initialize Redis cache
 	db.Cache = NewServerChace(db)
 	if db.Cache == nil {
-		log.Printf("Warning: redis chace is not avalabel, falling back to db")
+		fmt.Println("Warning: Redis cache is not available, falling back to database")
 	}
 
+	return nil
 }
 
 func GetDb(d *Databse) *gorm.DB {
@@ -90,7 +101,7 @@ func InsertDummyProblem(db *Databse) error {
 	var count int64
 	db.Db.Model(&modles.ProblemPropaty{}).Count(&count)
 	if count > 0 {
-		fmt.Println("Problems already exist in database")
+		fmt.Println("Problems already exist in database, skipping insertion")
 		return nil
 	}
 
@@ -193,19 +204,32 @@ using namespace std;`,
 		},
 	}
 
-	// Insert all problems
+	// Insert all problems in a transaction
+	tx := db.Db.Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to start transaction: %v", tx.Error)
+	}
+
 	for _, problem := range problems {
 		fmt.Printf("Inserting problem: %s with difficulty: %s\n", problem.Title, problem.Difficulty)
-		if err := db.Db.Create(&problem).Error; err != nil {
+		if err := tx.Create(&problem).Error; err != nil {
+			tx.Rollback()
 			return fmt.Errorf("failed to insert problem '%s': %v", problem.Title, err)
 		}
 		fmt.Printf("Problem '%s' inserted successfully with difficulty: %s\n", problem.Title, problem.Difficulty)
 	}
 
-	//clear chace after inserting new problem
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	// Clear cache after inserting new problems
 	if db.Cache != nil {
-		db.Cache.ClearChace()
-		fmt.Println("Cache cleared after inserting new problems")
+		if err := db.Cache.ClearChace(); err != nil {
+			fmt.Printf("Warning: failed to clear cache: %v\n", err)
+		} else {
+			fmt.Println("Cache cleared after inserting new problems")
+		}
 	}
 
 	return nil

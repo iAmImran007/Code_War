@@ -7,9 +7,11 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
+	"github.com/iAmImran007/Code_War/pkg/auth"
 	cppruner "github.com/iAmImran007/Code_War/pkg/cppRuner"
 	"github.com/iAmImran007/Code_War/pkg/database"
 	"github.com/iAmImran007/Code_War/pkg/modles"
+	"gorm.io/gorm"
 )
 
 type Room struct {
@@ -26,6 +28,7 @@ type Player struct {
 	partner *Player
 	send    chan []byte
 	solved  bool
+	UserID uint `json:"user_id"`
 }
 
 type Message struct {
@@ -68,11 +71,19 @@ func (rm *Room) HandleWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//extract the player userId
+	userID := rm.getUserIDFromRequest(r)
+        if userID == 0 {
+	    conn.Close()
+	    return
+    }
+
 	player := &Player{
 		conn:    conn,
 		partner: nil,
 		send:    make(chan []byte, 10),
 		solved:  false,
+		UserID: userID,
 	}
 
 	go rm.SendMsg(player)
@@ -285,6 +296,9 @@ func (rm *Room) handleGameWin(winner *Player) {
 	loseJSON, _ := json.Marshal(loseMsg)
 	partner.send <- loseJSON
 
+	//increiess player rating by 5 after winning
+	rm.updatePlayerRating(winner, partner)
+
 	fmt.Println("Game finished - winner determined")
 
 	// Clean up after a short delay to allow messages to be sent coz
@@ -309,6 +323,9 @@ func (rm *Room) handlePlayerDisconnect(player *Player) {
 		}
 		winJSON, _ := json.Marshal(winMsg)
 		partner.send <- winJSON
+
+		//update the player rating before desconnect
+		rm.updatePlayerRating(partner, player)
 
 		fmt.Println("Player disconnected - opponent wins by default")
 	}
@@ -399,4 +416,31 @@ func (rm *Room) handleChatMsg(player *Player, text string) {
 		fmt.Println("Feild to send a chat msg chanel problem")
 	}
 
+}
+
+func (rm *Room) updatePlayerRating(winner *Player, loser *Player) {
+	// Update winner's rating (+5)
+	if err := rm.db.Db.Model(&modles.User{}).Where("id = ?", winner.UserID).
+		UpdateColumn("rating", gorm.Expr("rating + ?", 5)).Error; err != nil {
+		fmt.Printf("Error updating winner rating: %v\n", err)
+	}
+	
+	fmt.Printf("Updated winner rating (+5)\n")
+}
+
+
+func (rm *Room) getUserIDFromRequest(r *http.Request) uint {
+	// Get access token from cookie
+	accessCookie, err := r.Cookie("access_token")
+	if err != nil || accessCookie.Value == "" {
+		return 0
+	}
+	
+	// You'll need to import your auth package and validate token
+	claims, err := auth.ValidateToken(accessCookie.Value)
+	if err != nil {
+		return 0
+	}
+	
+	return claims.UserID
 }

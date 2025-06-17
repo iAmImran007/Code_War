@@ -38,7 +38,7 @@ func (r *Routes) handleGameWithLimit(w http.ResponseWriter, req *http.Request) {
 	// Call original game handler
 	r.GameRoom.HandleWs(w, req)
 }
-
+//change happend here suggest by llm
 func (r *Routes) handleSubscriptionStatus(w http.ResponseWriter, req *http.Request) {
 	userContext, ok := middleware.GetUserFromContext(req)
 	if !ok {

@@ -5,16 +5,20 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gorilla/handlers"
 	"github.com/iAmImran007/Code_War/pkg/database"
 	"github.com/iAmImran007/Code_War/pkg/routes"
-	"github.com/gorilla/handlers"
 )
 
 func main() {
-	database.LoadEnv()
+	if err := database.LoadEnv(); err != nil {
+		log.Fatalf("Failed to load environment variables: %v", err)
+	}
 
 	db := database.Databse{}
-	database.ConectToDb(&db)
+	if err := database.ConectToDb(&db); err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
 
 	// Insert dummy problem into db
 	if err := database.InsertDummyProblem(&db); err != nil {
@@ -28,13 +32,14 @@ func main() {
 	corsOpts := handlers.CORS(
 		handlers.AllowedOrigins([]string{
 			"http://127.0.0.1:5500", //vs code liveserver
+			//add whatever u want to add
 		}),
 		handlers.AllowedMethods([]string{
 			"GET", "POST", "PUT", "DELETE", "OPTIONS",
 		}),
 		handlers.AllowedHeaders([]string{
-			"Content-Type", 
-			"Authorization", 
+			"Content-Type",
+			"Authorization",
 			"X-Requested-With",
 			"Accept",
 			"Origin",

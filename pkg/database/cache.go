@@ -73,20 +73,56 @@ func (r *Redis) GetAllProblems() ([]modles.ProblemPropaty, error) {
 
 // get random problem from cache
 func (r *Redis) GetRandomproblemm() (*modles.ProblemPropaty, error) {
-	problem, err := r.GetAllProblems()
-	if err != nil {
-		return nil, err
+	// Try to get from cache first
+	cachedData, err := r.client.Get(r.ctx, "all_problems").Result()
+	if err == nil {
+		// Cache hit - unmarshal and return
+		var problems []modles.ProblemPropaty
+		if err := json.Unmarshal([]byte(cachedData), &problems); err == nil && len(problems) > 0 {
+			fmt.Println("Cache HIT: Retrieved problems from Redis")
+			rand.Seed(time.Now().UnixNano())
+			randomIndex := rand.Intn(len(problems))
+
+			// Get the full problem data from database since cache only has basic info
+			var fullProblem modles.ProblemPropaty
+			if err := r.db.Db.Preload("TestCases").Preload("Examples").First(&fullProblem, problems[randomIndex].ID).Error; err != nil {
+				return nil, fmt.Errorf("failed to load full problem data: %v", err)
+			}
+			return &fullProblem, nil
+		}
 	}
 
-	if len(problem) == 0 {
-		return nil, fmt.Errorf("no problem found in database")
+	// Cache miss - fetch from database with all relations
+	fmt.Println("Cache MISS: Fetching problems from database")
+	var problems []modles.ProblemPropaty
+	if err := r.db.Db.Preload("TestCases").Preload("Examples").Find(&problems).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch problems from database: %v", err)
 	}
 
-	//get the random problem
+	if len(problems) == 0 {
+		return nil, fmt.Errorf("no problems found in database")
+	}
+
+	// Store basic problem info in cache for 1 hour
+	var basicProblems []modles.ProblemPropaty
+	for _, p := range problems {
+		basicProblems = append(basicProblems, modles.ProblemPropaty{
+			Model:      p.Model,
+			Title:      p.Title,
+			Difficulty: p.Difficulty,
+		})
+	}
+
+	problemsJSON, err := json.Marshal(basicProblems)
+	if err == nil {
+		r.client.Set(r.ctx, "all_problems", problemsJSON, time.Hour)
+		fmt.Println("Problems cached in Redis")
+	}
+
+	// Get random problem
 	rand.Seed(time.Now().UnixNano())
-	randomIndex := rand.Intn(len(problem))
-	return &problem[randomIndex], nil
-
+	randomIndex := rand.Intn(len(problems))
+	return &problems[randomIndex], nil
 }
 
 // getByid

@@ -7,8 +7,10 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/iAmImran007/Code_War/pkg/auth"
 	cppruner "github.com/iAmImran007/Code_War/pkg/cppRuner"
 	"github.com/iAmImran007/Code_War/pkg/modles"
+	"gorm.io/gorm"
 )
 
 type SubmissionRequest struct {
@@ -308,6 +310,8 @@ func (r *Routes) HandleSubmition(w http.ResponseWriter, req *http.Request) {
 	if result.Passed == result.Total {
 		status = "accepted"
 		message = "All test cases passed! Solution accepted."
+		r.incrementSolvedProblems(req, uint(problemID))
+ 
 	} else if result.Passed == 0 {
 		status = "failed"
 		message = "All test cases failed"
@@ -327,3 +331,33 @@ func (r *Routes) HandleSubmition(w http.ResponseWriter, req *http.Request) {
 		},
 	})
 }
+
+
+func (r *Routes) incrementSolvedProblems(req *http.Request, problemID uint) {
+    // Get user ID from JWT token
+    accessCookie, err := req.Cookie("access_token")
+    if err != nil {
+        return // No token, skip
+    }
+    
+    if accessCookie.Value == "" {
+        return // Empty token, skip
+    }
+    
+    claims, err := auth.ValidateToken(accessCookie.Value)
+    if err != nil {
+        return // Invalid token, skip
+    }
+    
+    // Check if user already solved this problem (optional - to avoid duplicate counting)
+    var count int64
+    r.Db.Db.Table("user_problems").Where("user_id = ? AND problem_id = ?", claims.UserID, problemID).Count(&count)
+    
+    if count == 0 { // Problem not solved before
+        // Record the solution (you can create this table or skip this part)
+        // For now, just increment the count
+        r.Db.Db.Model(&modles.User{}).Where("id = ?", claims.UserID).
+            Update("solved_problems", gorm.Expr("solved_problems + ?", 1))
+    }
+}
+
