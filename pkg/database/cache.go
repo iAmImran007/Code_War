@@ -44,7 +44,7 @@ func NewServerChace(db *Databse) *Redis {
 // get all problem
 func (r *Redis) GetAllProblems() ([]modles.ProblemPropaty, error) {
 	// Try to get from cache first
-	cachedData, err := r.client.Get(r.ctx, "all_problems").Result()
+	cachedData, err := r.client.Get(r.ctx, "all_problems_basic").Result()
 	if err == nil {
 		// Cache hit - unmarshal and return
 		var problems []modles.ProblemPropaty
@@ -64,36 +64,33 @@ func (r *Redis) GetAllProblems() ([]modles.ProblemPropaty, error) {
 	// Store in cache for 1 hour
 	problemsJSON, err := json.Marshal(problems)
 	if err == nil {
-		r.client.Set(r.ctx, "all_problems", problemsJSON, time.Hour)
+		r.client.Set(r.ctx, "all_problems_basic", problemsJSON, time.Hour)
 		fmt.Println("Problems cached in Redis")
 	}
 
 	return problems, nil
 }
 
-// get random problem from cache
+
+
+
+//get random problems
 func (r *Redis) GetRandomproblemm() (*modles.ProblemPropaty, error) {
-	// Try to get from cache first
-	cachedData, err := r.client.Get(r.ctx, "all_problems").Result()
+	// Try to get full problems from cache first
+	cachedData, err := r.client.Get(r.ctx, "all_problems_full").Result()
 	if err == nil {
 		// Cache hit - unmarshal and return
 		var problems []modles.ProblemPropaty
 		if err := json.Unmarshal([]byte(cachedData), &problems); err == nil && len(problems) > 0 {
-			fmt.Println("Cache HIT: Retrieved problems from Redis")
+			fmt.Println("Cache HIT: Retrieved full problems from Redis")
 			rand.Seed(time.Now().UnixNano())
 			randomIndex := rand.Intn(len(problems))
-
-			// Get the full problem data from database since cache only has basic info
-			var fullProblem modles.ProblemPropaty
-			if err := r.db.Db.Preload("TestCases").Preload("Examples").First(&fullProblem, problems[randomIndex].ID).Error; err != nil {
-				return nil, fmt.Errorf("failed to load full problem data: %v", err)
-			}
-			return &fullProblem, nil
+			return &problems[randomIndex], nil
 		}
 	}
 
 	// Cache miss - fetch from database with all relations
-	fmt.Println("Cache MISS: Fetching problems from database")
+	fmt.Println("Cache MISS: Fetching full problems from database")
 	var problems []modles.ProblemPropaty
 	if err := r.db.Db.Preload("TestCases").Preload("Examples").Find(&problems).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch problems from database: %v", err)
@@ -103,20 +100,11 @@ func (r *Redis) GetRandomproblemm() (*modles.ProblemPropaty, error) {
 		return nil, fmt.Errorf("no problems found in database")
 	}
 
-	// Store basic problem info in cache for 1 hour
-	var basicProblems []modles.ProblemPropaty
-	for _, p := range problems {
-		basicProblems = append(basicProblems, modles.ProblemPropaty{
-			Model:      p.Model,
-			Title:      p.Title,
-			Difficulty: p.Difficulty,
-		})
-	}
-
-	problemsJSON, err := json.Marshal(basicProblems)
+	// Store FULL problem data in cache for 1 hour
+	problemsJSON, err := json.Marshal(problems)
 	if err == nil {
-		r.client.Set(r.ctx, "all_problems", problemsJSON, time.Hour)
-		fmt.Println("Problems cached in Redis")
+		r.client.Set(r.ctx, "all_problems_full", problemsJSON, time.Hour)
+		fmt.Println("Full problems cached in Redis")
 	}
 
 	// Get random problem
@@ -125,40 +113,42 @@ func (r *Redis) GetRandomproblemm() (*modles.ProblemPropaty, error) {
 	return &problems[randomIndex], nil
 }
 
-// getByid
+
+
+//get random problems by id
 func (r *Redis) GetProblemById(problemId uint) (*modles.ProblemPropaty, error) {
 	cacheKey := fmt.Sprintf("problem_%d", problemId)
 
+	// Try to get from cache first
 	cacheData, err := r.client.Get(r.ctx, cacheKey).Result()
 	if err == nil {
 		var problem modles.ProblemPropaty
-		if err := json.Unmarshal([]byte(cacheData), &problem); err != nil {
-			fmt.Printf("Chace Hit: Retrive problem %d from redis \n", problemId)
+		if err := json.Unmarshal([]byte(cacheData), &problem); err == nil {
+			fmt.Printf("Cache Hit: Retrieved problem %d from redis\n", problemId)
 			return &problem, nil
 		}
 	}
 
-	//cache missied
-	problems, err := r.GetAllProblems()
-	if err != nil {
-		return nil, err
+	// Cache miss - fetch from database with full data
+	fmt.Printf("Cache MISS: Fetching problem %d from database\n", problemId)
+	var problem modles.ProblemPropaty
+	if err := r.db.Db.Preload("TestCases").Preload("Examples").Where("id = ?", problemId).First(&problem).Error; err != nil {
+		return nil, fmt.Errorf("problem with id %d not found: %v", problemId, err)
 	}
 
-	//find the specific problem
-	for _, prblem := range problems {
-		if prblem.ID == problemId {
-			problemJSON, err := json.Marshal(prblem)
-			if err == nil {
-				r.client.Set(r.ctx, cacheKey, problemJSON, time.Hour)
-			}
-			return &prblem, nil
-		}
+	// Cache the full problem data
+	problemJSON, err := json.Marshal(problem)
+	if err == nil {
+		r.client.Set(r.ctx, cacheKey, problemJSON, time.Hour)
+		fmt.Printf("Problem %d cached in Redis\n", problemId)
 	}
 
-	return nil, fmt.Errorf("prolem is in the problem id %d not found", problemId)
+	return &problem, nil
 }
 
-// clear
+
+
+//clear it 
 func (r *Redis) ClearChace() error {
 	return r.client.FlushDB(r.ctx).Err()
 }
@@ -167,6 +157,7 @@ func (r *Redis) ClearChace() error {
 func (r *Redis) ClearproblemCache(prblemId uint) error {
 	cacheKey := fmt.Sprintf("problem_%d", prblemId)
 	r.client.Del(r.ctx, cacheKey)
-	r.client.Del(r.ctx, "all_problems")
+	r.client.Del(r.ctx, "all_problems_besic")
+	r.client.Del(r.ctx, "all_problems_full")
 	return nil
 }
