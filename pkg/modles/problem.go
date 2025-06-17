@@ -32,8 +32,7 @@ type TestCaesPropaty struct {
 
 /*
 docker-compose down -v    # removes containers + associated volumes
-docker-compose build      # rebuilds all images
-docker-compose up -d      # starts everything in detached mode
-docker-compose logs -f    # follow logs
+docker-compose build      # rebuilds all ima
+docker-compose up --build
 
 */

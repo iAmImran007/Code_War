@@ -33,7 +33,7 @@ func (g *GameLimitService) CanPlayGame(userID uint) (bool, error) {
 	}
 
 	// Free users get 1 game per day
-	return usage.GamesUsed < 10, nil
+	return usage.GamesUsed < 1, nil
 }
 
 func (g *GameLimitService) IncrementGameUsage(userID uint) error {

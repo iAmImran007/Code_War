@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -20,7 +21,7 @@ type Redis struct {
 
 func NewServerChace(db *Databse) *Redis {
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		Addr:     fmt.Sprintf("%s:%s", os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PORT")),
 		Password: "",
 		DB:       0,
 	})
@@ -71,10 +72,7 @@ func (r *Redis) GetAllProblems() ([]modles.ProblemPropaty, error) {
 	return problems, nil
 }
 
-
-
-
-//get random problems
+// get random problems
 func (r *Redis) GetRandomproblemm() (*modles.ProblemPropaty, error) {
 	// Try to get full problems from cache first
 	cachedData, err := r.client.Get(r.ctx, "all_problems_full").Result()
@@ -113,9 +111,7 @@ func (r *Redis) GetRandomproblemm() (*modles.ProblemPropaty, error) {
 	return &problems[randomIndex], nil
 }
 
-
-
-//get random problems by id
+// get random problems by id
 func (r *Redis) GetProblemById(problemId uint) (*modles.ProblemPropaty, error) {
 	cacheKey := fmt.Sprintf("problem_%d", problemId)
 
@@ -146,9 +142,7 @@ func (r *Redis) GetProblemById(problemId uint) (*modles.ProblemPropaty, error) {
 	return &problem, nil
 }
 
-
-
-//clear it 
+// clear it
 func (r *Redis) ClearChace() error {
 	return r.client.FlushDB(r.ctx).Err()
 }

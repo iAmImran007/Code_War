@@ -353,8 +353,7 @@ func (r *Routes) incrementSolvedProblems(req *http.Request, problemID uint) {
     var count int64
     r.Db.Db.Table("user_problems").Where("user_id = ? AND problem_id = ?", claims.UserID, problemID).Count(&count)
     
-    if count == 0 { // Problem not solved before
-        // Record the solution (you can create this table or skip this part)
+    if count == 0 { 
         // For now, just increment the count
         r.Db.Db.Model(&modles.User{}).Where("id = ?", claims.UserID).
             Update("solved_problems", gorm.Expr("solved_problems + ?", 1))
